@@ -1,0 +1,66 @@
+name: Daily CS Knowledge Sync
+
+on:
+  schedule:
+    # Har roz raat 11:30 PM PKT (6:30 PM UTC) par run hoga
+    - cron: '30 18 * * *'
+  workflow_dispatch: # Manual test run ke liye button
+
+permissions:
+  contents: write
+
+jobs:
+  publish-note:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate High-Yield CS Note
+        run: |
+          python -c '
+          import os, random, datetime
+
+          topics = [
+              ("system-design", "Consistent Hashing and Virtual Nodes", 
+               "Consistent hashing solves the rehashing problem when nodes join or leave a distributed cluster. By mapping both nodes and keys to a continuous circular ring (0 to 2^32 - 1), a node failure only redistributes K/N keys to the immediate successor.\n\n### Virtual Nodes (V-Nodes)\nTo prevent hotspotting and non-uniform key distribution, each physical server is allocated multiple virtual positions across the ring. This balances load evenly and ensures $O(\log N)$ lookup via binary search."),
+              
+              ("dsa", "Monotonic Stack Pattern for Next Greater Element",
+               "A monotonic stack maintains elements in strictly increasing or decreasing order. It resolves Next Greater Element queries in linear time $O(N)$ by ensuring each element is pushed and popped at most once.\n\n```python\ndef next_greater_element(nums):\n    stack = []\n    res = [-1] * len(nums)\n    for i in range(len(nums) - 1, -1, -1):\n        while stack and stack[-1] <= nums[i]:\n            stack.pop()\n        if stack:\n            res[i] = stack[-1]\n        stack.append(nums[i])\n    return res\n```\n\n**Complexity:** Time: $O(N)$, Space: $O(N)$."),
+
+              ("databases", "LSM-Trees vs B-Trees for Write-Heavy Workloads",
+               "Traditional relational engines use B+ Trees which require in-place updates, resulting in random disk I/O. Log-Structured Merge (LSM) trees optimize write throughput by converting random disk writes into sequential append-only writes.\n\n### Core Mechanics:\n1. **MemTable:** In-memory sorted buffer (SkipList or Red-Black Tree).\n2. **WAL (Write-Ahead Log):** Ensures crash durability.\n3. **SSTables (Sorted String Tables):** Flushed immutable runs on disk merged periodically via compaction."),
+
+              ("internals", "Virtual Memory Paging and Translation Lookaside Buffer",
+               "Virtual memory decouples process address spaces from physical DRAM. The CPU Memory Management Unit (MMU) uses multi-level Page Tables to map virtual page numbers (VPN) to physical frame numbers (PFN).\n\n### TLB Role:\nTraversing page tables requires multiple memory accesses. The Translation Lookaside Buffer (TLB) acts as a high-speed hardware cache for page table mappings, reducing average address translation latency to under a nanosecond.")
+          ]
+
+          # Random ya sequential pick
+          category, title, content = random.choice(topics)
+          date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+          slug = title.lower().replace(" ", "-").replace("/", "-")
+          
+          target_dir = f"vault/{category}"
+          os.makedirs(target_dir, exist_ok=True)
+          file_path = f"{target_dir}/{date_str}-{slug}.md"
+
+          with open(file_path, "w", encoding="utf-8") as f:
+              f.write(f"# {title}\n\n")
+              f.write(f"**Date Published:** {date_str} (Automated Knowledge Engine)\n")
+              f.write(f"**Category:** `{category}`\n\n---\n\n")
+              f.write(content)
+              f.write("\n\n---\n*Verified Engineering Note for CS Knowledge Base.*")
+          '
+
+      - name: Commit and Push Note
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add vault/
+          git commit -m "docs: publish daily computer science study note [automated]" || echo "No changes"
+          git push
