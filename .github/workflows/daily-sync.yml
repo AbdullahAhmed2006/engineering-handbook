@@ -4,7 +4,7 @@ on:
   schedule:
     # Har roz raat 11:30 PM PKT (6:30 PM UTC) par run hoga
     - cron: '30 18 * * *'
-  workflow_dispatch: # Manual test run ke liye button
+  workflow_dispatch: # Manual test run button
 
 permissions:
   contents: write
@@ -21,46 +21,62 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Generate High-Yield CS Note
+      - name: Generate High-Yield Multi-Stack Engineering Note
         run: |
           python -c '
           import os, random, datetime
 
           topics = [
-              ("system-design", "Consistent Hashing and Virtual Nodes", 
-               "Consistent hashing solves the rehashing problem when nodes join or leave a distributed cluster. By mapping both nodes and keys to a continuous circular ring (0 to 2^32 - 1), a node failure only redistributes K/N keys to the immediate successor.\n\n### Virtual Nodes (V-Nodes)\nTo prevent hotspotting and non-uniform key distribution, each physical server is allocated multiple virtual positions across the ring. This balances load evenly and ensures $O(\log N)$ lookup via binary search."),
-              
-              ("dsa", "Monotonic Stack Pattern for Next Greater Element",
-               "A monotonic stack maintains elements in strictly increasing or decreasing order. It resolves Next Greater Element queries in linear time $O(N)$ by ensuring each element is pushed and popped at most once.\n\n```python\ndef next_greater_element(nums):\n    stack = []\n    res = [-1] * len(nums)\n    for i in range(len(nums) - 1, -1, -1):\n        while stack and stack[-1] <= nums[i]:\n            stack.pop()\n        if stack:\n            res[i] = stack[-1]\n        stack.append(nums[i])\n    return res\n```\n\n**Complexity:** Time: $O(N)$, Space: $O(N)$."),
+              # --- C++ & LOW LEVEL SYSTEMS ---
+              ("cpp-systems", "Modern C++ Smart Pointers and Memory Ownership",
+               "### RAII & Memory Ownership Mechanics in C++\nManual memory management via raw pointers (`new`/`delete`) introduces double-free and leak vulnerabilities. Modern C++ (C++11/17/20) enforces ownership semantics using Smart Pointers in `<memory>`.\n\n```cpp\n#include <iostream>\n#include <memory>\n\nclass Connection {\npublic:\n    void execute() { std::cout << \"Executing query...\\n\"; }\n};\n\nint main() {\n    // Unique ownership: Zero runtime overhead, non-copyable, strictly movable\n    std::unique_ptr<Connection> conn = std::make_unique<Connection>();\n    conn->execute();\n\n    // Shared ownership: Thread-safe atomic reference counter\n    std::shared_ptr<Connection> sharedConn = std::make_shared<Connection>();\n    std::weak_ptr<Connection> weakConn = sharedConn; // Prevents cyclic references\n    return 0;\n}\n```\n\n**Key Takeaway:** Prefer `std::unique_ptr` by default. Downgrade to `std::shared_ptr` only when multiple runtime owners legitimately share entity lifecycle."),
 
-              ("databases", "LSM-Trees vs B-Trees for Write-Heavy Workloads",
-               "Traditional relational engines use B+ Trees which require in-place updates, resulting in random disk I/O. Log-Structured Merge (LSM) trees optimize write throughput by converting random disk writes into sequential append-only writes.\n\n### Core Mechanics:\n1. **MemTable:** In-memory sorted buffer (SkipList or Red-Black Tree).\n2. **WAL (Write-Ahead Log):** Ensures crash durability.\n3. **SSTables (Sorted String Tables):** Flushed immutable runs on disk merged periodically via compaction."),
+              # --- PYTHON BACKEND & CONCURRENCY ---
+              ("python-backend", "Asynchronous Event Loops and FastAPI Concurrency",
+               "### AsyncIO Mechanics: Coroutines vs Thread Pools\nFastAPI handles asynchronous request concurrency using Python standard `asyncio` event loop. It avoids OS-thread context switching overhead by utilizing cooperative multitasking.\n\n```python\nimport asyncio\nfrom fastapi import FastAPI\n\napp = FastAPI()\n\nasync def fetch_external_data():\n    await asyncio.sleep(0.1) # Non-blocking I/O simulation\n    return {\"status\": \"synchronized\"}\n\n@app.get(\"/api/v1/stream\")\nasync def stream_endpoint():\n    # Yields control back to the event loop while awaiting I/O\n    result = await fetch_external_data()\n    return {\"data\": result}\n```\n\n**Critical Rule:** Never run blocking CPU-bound code or blocking drivers (e.g., standard `time.sleep()` or synchronous `requests`) directly in an `async def` route; offload them to `run_in_threadpool` to prevent freezing the entire single-threaded event loop."),
 
-              ("internals", "Virtual Memory Paging and Translation Lookaside Buffer",
-               "Virtual memory decouples process address spaces from physical DRAM. The CPU Memory Management Unit (MMU) uses multi-level Page Tables to map virtual page numbers (VPN) to physical frame numbers (PFN).\n\n### TLB Role:\nTraversing page tables requires multiple memory accesses. The Translation Lookaside Buffer (TLB) acts as a high-speed hardware cache for page table mappings, reducing average address translation latency to under a nanosecond.")
+              # --- REACT & FRONTEND ARCHITECTURE ---
+              ("react-frontend", "React Fiber Reconciliation and Custom Hook Optimization",
+               "### Virtual DOM vs Concurrent Fiber Tree\nReact reconciliation breaks rendering work into incremental units called Fibers. State mutations trigger double-buffered tree recalculations without blocking main thread painting.\n\n```tsx\nimport React, { useState, useEffect, useCallback, useMemo } from \"react\";\n\ninterface MetricProps {\n  readonly rawScores: number[];\n}\n\nexport const MetricsDashboard: React.FC<MetricProps> = ({ rawScores }) => {\n  const [filter, setFilter] = useState<number>(0);\n\n  // Memoizes expensive computation between re-renders\n  const computedMean = useMemo(() => {\n    if (rawScores.length === 0) return 0;\n    const valid = rawScores.filter(s => s > filter);\n    return valid.reduce((acc, curr) => acc + curr, 0) / (valid.length || 1);\n  }, [rawScores, filter]);\n\n  return (\n    <div className=\"p-4 rounded-xl shadow-md border border-neutral-200\">\n      <h2 className=\"text-lg font-semibold\">Aggregated Mean: {computedMean}</h2>\n    </div>\n  );\n};\n```\n\n**Optimization Tip:** Avoid passing inline object literals or unmemoized callback handlers across deeply nested component subtrees."),
+
+              # --- JAVA & OBJECT-ORIENTED PATTERNS ---
+              ("java-backend", "Thread Pools and Producer-Consumer Pattern in Java",
+               "### Concurrency via BlockingQueue & ExecutorService\nThread lifecycle management in Java requires thread pools to prevent resource exhaustion from unbound thread creation.\n\n```java\nimport java.util.concurrent.*;\n\npublic class TaskDistributor {\n    private final BlockingQueue<String> queue = new LinkedBlockingQueue<>(1000);\n    private final ExecutorService executor = Executors.newFixedThreadPool(4);\n\n    public void produce(String taskPayload) throws InterruptedException {\n        queue.put(taskPayload); // Blocks if buffer capacity reached\n    }\n\n    public void startWorkers() {\n        for (int i = 0; i < 4; i++) {\n            executor.submit(() -> {\n                while (!Thread.currentThread().isInterrupted()) {\n                    try {\n                        String task = queue.take();\n                        System.out.println(\"Processing task: \" + task);\n                    } catch (InterruptedException e) {\n                        Thread.currentThread().interrupt();\n                    }\n                }\n            });\n        }\n    }\n}\n```\n\n**Design Principle:** Thread pooling abstracts thread scheduling and decouples task generation from actual execution."),
+
+              # --- DATABASE ENGINE INTERNALS ---
+              ("databases", "PostgreSQL MVCC and B-Tree Index Optimization",
+               "### Multi-Version Concurrency Control (MVCC)\nPostgreSQL uses MVCC to achieve transaction isolation without read locks. Every row tuple contains hidden system attributes: `xmin` (creation transaction ID) and `xmax` (deletion transaction ID).\n\n```sql\n-- Create composite index optimized for multi-column range queries\nCREATE INDEX idx_orders_customer_created \nON orders (customer_id, created_at DESC);\n\n-- Inspect query execution cost via buffer statistics\nEXPLAIN (ANALYZE, BUFFERS)\nSELECT id, total_amount \nFROM orders \nWHERE customer_id = 1042 AND created_at >= NOW() - INTERVAL '\''30 days\'\'';\n```\n\n**Rule of Thumb:** Place equality match columns first in composite B-Tree indexes, followed by range scan attributes."),
+
+              # --- DISTRIBUTED SYSTEMS & SYSTEM DESIGN ---
+              ("system-design", "Distributed Rate Limiting with Redis Token Bucket",
+               "### Token Bucket Algorithm at Scale\nTo protect API gateways against denial-of-service, the Token Bucket algorithm maintains a central token counter per client identifier in Redis using atomic Lua scripting.\n\n```lua\n-- Redis Lua Script for Atomic Rate Limiting\nlocal key = KEYS[1]\nlocal limit = tonumber(ARGV[1])\nlocal current = tonumber(redis.call(\"get\", key) or \"0\")\n\nif current + 1 > limit then\n    return 0 -- Rate limited\nelse\n    redis.call(\"incrby\", key, 1)\n    if current == 0 then\n        redis.call(\"expire\", key, 60) -- 60s window\n    end\n    return 1 -- Request allowed\nend\n```\n\n**Benefit:** Atomic Lua scripts execute entirely within Redis single-threaded execution context, eliminating race conditions under concurrent cluster requests."),
+
+              # --- ALGORITHMIC PATTERNS (DSA) ---
+              ("dsa", "Sliding Window Maximum using Deque",
+               "### Monotonic Double-Ended Queue Pattern\nFinding the maximum element in sliding windows of size $K$ naively takes $O(N \\times K)$. Using a monotonic decreasing deque achieves linear $O(N)$ runtime.\n\n```python\nfrom collections import deque\nfrom typing import List\n\ndef max_sliding_window(nums: List[int], k: int) -> List[int]:\n    dq = deque() # Stores indices of elements in monotonically decreasing value order\n    result = []\n    \n    for i, n in enumerate(nums):\n        # 1. Pop smaller elements from right\n        while dq and nums[dq[-1]] < n:\n            dq.pop()\n        dq.append(i)\n        \n        # 2. Evict leftmost index if outside window\n        if dq[0] == i - k:\n            dq.popleft()\n            \n        # 3. Append maximum (at index dq[0]) once first window completed\n        if i >= k - 1:\n            result.append(nums[dq[0]])\n            \n    return result\n```\n\n**Complexity:** Time: $O(N)$ amortized. Space: $O(K)$ auxiliary space.")
           ]
 
-          # Random ya sequential pick
           category, title, content = random.choice(topics)
           date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-          slug = title.lower().replace(" ", "-").replace("/", "-")
-          
+          slug = title.lower().replace(" ", "-").replace("/", "-").replace("+", "p")
+
           target_dir = f"vault/{category}"
           os.makedirs(target_dir, exist_ok=True)
           file_path = f"{target_dir}/{date_str}-{slug}.md"
 
           with open(file_path, "w", encoding="utf-8") as f:
               f.write(f"# {title}\n\n")
-              f.write(f"**Date Published:** {date_str} (Automated Knowledge Engine)\n")
-              f.write(f"**Category:** `{category}`\n\n---\n\n")
+              f.write(f"- **Author:** Abdullah Ahmed (@AbdullahAhmed2006)\n")
+              f.write(f"- **Date Published:** {date_str}\n")
+              f.write(f"- **Category:** `{category}`\n\n---\n\n")
               f.write(content)
-              f.write("\n\n---\n*Verified Engineering Note for CS Knowledge Base.*")
+              f.write("\n\n---\n*Automated Computer Science & Engineering Architecture Vault.*")
           '
 
-      - name: Commit and Push Note
+      - name: Commit and Push Note as Abdullah Ahmed
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "Abdullah Ahmed"
+          git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           git add vault/
-          git commit -m "docs: publish daily computer science study note [automated]" || echo "No changes"
-          git push
+          git commit -m "docs: publish comprehensive engineering note [streak-sync]" || echo "No changes to commit"
+          git push origin main
