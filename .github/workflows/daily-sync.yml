@@ -2,15 +2,18 @@ name: Daily CS Knowledge Sync
 
 on:
   schedule:
-    # Har roz raat 11:30 PM PKT (6:30 PM UTC) par run hoga
-    - cron: '30 18 * * *'
-  workflow_dispatch: # Manual test run button
+    # Din mein 3 alag alag dafa chalega (PKT Times):
+    # 1) Subah 11:30 AM PKT (6:30 AM UTC)
+    # 2) Shaam 5:30 PM PKT (12:30 PM UTC)
+    # 3) Raat 11:30 PM PKT (6:30 PM UTC)
+    - cron: '30 6,12,18 * * *'
+  workflow_dispatch: # Manual button to trigger multi-commits on demand
 
 permissions:
   contents: write
 
 jobs:
-  publish-note:
+  publish-multiple-notes:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -21,62 +24,70 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Generate High-Yield Multi-Stack Engineering Note
+      - name: Generate & Commit Multiple High-Yield Notes
         run: |
           python -c '
-          import os, random, datetime
+          import os, random, datetime, subprocess, time
 
           topics = [
-              # --- C++ & LOW LEVEL SYSTEMS ---
-              ("cpp-systems", "Modern C++ Smart Pointers and Memory Ownership",
-               "### RAII & Memory Ownership Mechanics in C++\nManual memory management via raw pointers (`new`/`delete`) introduces double-free and leak vulnerabilities. Modern C++ (C++11/17/20) enforces ownership semantics using Smart Pointers in `<memory>`.\n\n```cpp\n#include <iostream>\n#include <memory>\n\nclass Connection {\npublic:\n    void execute() { std::cout << \"Executing query...\\n\"; }\n};\n\nint main() {\n    // Unique ownership: Zero runtime overhead, non-copyable, strictly movable\n    std::unique_ptr<Connection> conn = std::make_unique<Connection>();\n    conn->execute();\n\n    // Shared ownership: Thread-safe atomic reference counter\n    std::shared_ptr<Connection> sharedConn = std::make_shared<Connection>();\n    std::weak_ptr<Connection> weakConn = sharedConn; // Prevents cyclic references\n    return 0;\n}\n```\n\n**Key Takeaway:** Prefer `std::unique_ptr` by default. Downgrade to `std::shared_ptr` only when multiple runtime owners legitimately share entity lifecycle."),
+              ("cpp-systems", "RAII Idiom and Zero-Cost Abstractions in Modern C++",
+               "### Resource Acquisition Is Initialization (RAII)\nRAII ties the lifecycle of OS resources (file handles, sockets, mutexes) to object lifetime on the stack.\n\n```cpp\n#include <fstream>\n#include <mutex>\n\nvoid safe_write(const std::string& data) {\n    static std::mutex mtx;\n    std::lock_guard<std::mutex> lock(mtx); // Mutex acquired\n    std::ofstream file(\"audit.log\", std::ios::app);\n    file << data << \"\\n\";\n} // File closed and mutex automatically unlocked here\n```\n\n**Benefit:** Guaranteed exception safety and zero manual deallocation."),
 
-              # --- PYTHON BACKEND & CONCURRENCY ---
-              ("python-backend", "Asynchronous Event Loops and FastAPI Concurrency",
-               "### AsyncIO Mechanics: Coroutines vs Thread Pools\nFastAPI handles asynchronous request concurrency using Python standard `asyncio` event loop. It avoids OS-thread context switching overhead by utilizing cooperative multitasking.\n\n```python\nimport asyncio\nfrom fastapi import FastAPI\n\napp = FastAPI()\n\nasync def fetch_external_data():\n    await asyncio.sleep(0.1) # Non-blocking I/O simulation\n    return {\"status\": \"synchronized\"}\n\n@app.get(\"/api/v1/stream\")\nasync def stream_endpoint():\n    # Yields control back to the event loop while awaiting I/O\n    result = await fetch_external_data()\n    return {\"data\": result}\n```\n\n**Critical Rule:** Never run blocking CPU-bound code or blocking drivers (e.g., standard `time.sleep()` or synchronous `requests`) directly in an `async def` route; offload them to `run_in_threadpool` to prevent freezing the entire single-threaded event loop."),
+              ("python-backend", "Generators and Memory-Efficient Streaming in Python",
+               "### Evaluating Infinite Sequences with Yield\nStandard list comprehensions allocate entire collections in memory. Generators provide lazy evaluation using state suspension.\n\n```python\ndef stream_heavy_dataset(chunk_size=1024):\n    with open(\"server_logs.txt\", \"r\") as f:\n        while chunk := f.read(chunk_size):\n            yield chunk\n\nfor chunk in stream_heavy_dataset():\n    # Processes data stream with O(1) memory footprint\n    pass\n```\n\n**Complexity:** Time: $O(N)$, Space: $O(1)$ memory usage."),
 
-              # --- REACT & FRONTEND ARCHITECTURE ---
-              ("react-frontend", "React Fiber Reconciliation and Custom Hook Optimization",
-               "### Virtual DOM vs Concurrent Fiber Tree\nReact reconciliation breaks rendering work into incremental units called Fibers. State mutations trigger double-buffered tree recalculations without blocking main thread painting.\n\n```tsx\nimport React, { useState, useEffect, useCallback, useMemo } from \"react\";\n\ninterface MetricProps {\n  readonly rawScores: number[];\n}\n\nexport const MetricsDashboard: React.FC<MetricProps> = ({ rawScores }) => {\n  const [filter, setFilter] = useState<number>(0);\n\n  // Memoizes expensive computation between re-renders\n  const computedMean = useMemo(() => {\n    if (rawScores.length === 0) return 0;\n    const valid = rawScores.filter(s => s > filter);\n    return valid.reduce((acc, curr) => acc + curr, 0) / (valid.length || 1);\n  }, [rawScores, filter]);\n\n  return (\n    <div className=\"p-4 rounded-xl shadow-md border border-neutral-200\">\n      <h2 className=\"text-lg font-semibold\">Aggregated Mean: {computedMean}</h2>\n    </div>\n  );\n};\n```\n\n**Optimization Tip:** Avoid passing inline object literals or unmemoized callback handlers across deeply nested component subtrees."),
+              ("react-frontend", "React Server Components vs Client Island Hydration",
+               "### Architecture of Zero-Bundle-Size Server Components\nServer Components execute strictly on Node/Edge runtime, streaming serialized JSON-like virtual trees to the browser without shipping runtime JavaScript dependencies.\n\n```tsx\n// Server Component: direct DB access, 0kb client bundle\nimport db from \"@/lib/db\";\n\nexport default async function UserProfile({ id }: { id: string }) {\n  const user = await db.user.findUnique({ where: { id } });\n  return <section className=\"p-6 font-sans\">{user.name}</section>;\n}\n```\n\n**Key Metric:** Lowers First Contentful Paint (FCP) and reduces initial bundle overhead by up to 60%."),
 
-              # --- JAVA & OBJECT-ORIENTED PATTERNS ---
-              ("java-backend", "Thread Pools and Producer-Consumer Pattern in Java",
-               "### Concurrency via BlockingQueue & ExecutorService\nThread lifecycle management in Java requires thread pools to prevent resource exhaustion from unbound thread creation.\n\n```java\nimport java.util.concurrent.*;\n\npublic class TaskDistributor {\n    private final BlockingQueue<String> queue = new LinkedBlockingQueue<>(1000);\n    private final ExecutorService executor = Executors.newFixedThreadPool(4);\n\n    public void produce(String taskPayload) throws InterruptedException {\n        queue.put(taskPayload); // Blocks if buffer capacity reached\n    }\n\n    public void startWorkers() {\n        for (int i = 0; i < 4; i++) {\n            executor.submit(() -> {\n                while (!Thread.currentThread().isInterrupted()) {\n                    try {\n                        String task = queue.take();\n                        System.out.println(\"Processing task: \" + task);\n                    } catch (InterruptedException e) {\n                        Thread.currentThread().interrupt();\n                    }\n                }\n            });\n        }\n    }\n}\n```\n\n**Design Principle:** Thread pooling abstracts thread scheduling and decouples task generation from actual execution."),
+              ("java-backend", "Java Virtual Threads (Project Loom) Execution",
+               "### Lightweight User-Mode Threads in JDK 21+\nTraditional Java threads map 1:1 to OS kernel threads, bounded by OS memory stack allocation. Virtual threads decouple execution using carrier thread pooling.\n\n```java\ntry (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {\n    for (int i = 0; i < 10000; i++) {\n        executor.submit(() -> {\n            Thread.sleep(100); // Parks virtual thread without blocking OS kernel thread\n            return \"Complete\";\n        });\n    }\n}\n```\n\n**Scale:** Capable of running millions of concurrent threads with minimal footprint."),
 
-              # --- DATABASE ENGINE INTERNALS ---
-              ("databases", "PostgreSQL MVCC and B-Tree Index Optimization",
-               "### Multi-Version Concurrency Control (MVCC)\nPostgreSQL uses MVCC to achieve transaction isolation without read locks. Every row tuple contains hidden system attributes: `xmin` (creation transaction ID) and `xmax` (deletion transaction ID).\n\n```sql\n-- Create composite index optimized for multi-column range queries\nCREATE INDEX idx_orders_customer_created \nON orders (customer_id, created_at DESC);\n\n-- Inspect query execution cost via buffer statistics\nEXPLAIN (ANALYZE, BUFFERS)\nSELECT id, total_amount \nFROM orders \nWHERE customer_id = 1042 AND created_at >= NOW() - INTERVAL '\''30 days\'\'';\n```\n\n**Rule of Thumb:** Place equality match columns first in composite B-Tree indexes, followed by range scan attributes."),
+              ("databases", "B-Tree Splitting and Write Amplification in Storage Engines",
+               "### B+ Tree Node Splitting\nWhen an index leaf page exceeds the maximum block size (typically 8KB), an interior node split occurs. While lookups remain optimal at $O(\log N)$, random insertions cause page fragmentation and write amplification.\n\n```sql\n-- Create partitioned index to prevent page hot-spots\nCREATE TABLE sensor_readings (\n    recorded_at TIMESTAMPTZ NOT NULL,\n    reading_val DOUBLE PRECISION\n) PARTITION BY RANGE (recorded_at);\n```\n\n**Remediation:** Bulk loading and sequential monotonically increasing keys minimize page split overhead."),
 
-              # --- DISTRIBUTED SYSTEMS & SYSTEM DESIGN ---
-              ("system-design", "Distributed Rate Limiting with Redis Token Bucket",
-               "### Token Bucket Algorithm at Scale\nTo protect API gateways against denial-of-service, the Token Bucket algorithm maintains a central token counter per client identifier in Redis using atomic Lua scripting.\n\n```lua\n-- Redis Lua Script for Atomic Rate Limiting\nlocal key = KEYS[1]\nlocal limit = tonumber(ARGV[1])\nlocal current = tonumber(redis.call(\"get\", key) or \"0\")\n\nif current + 1 > limit then\n    return 0 -- Rate limited\nelse\n    redis.call(\"incrby\", key, 1)\n    if current == 0 then\n        redis.call(\"expire\", key, 60) -- 60s window\n    end\n    return 1 -- Request allowed\nend\n```\n\n**Benefit:** Atomic Lua scripts execute entirely within Redis single-threaded execution context, eliminating race conditions under concurrent cluster requests."),
+              ("system-design", "Bloom Filter Internals and False Positive Reduction",
+               "### Probabilistic Set Membership via Bit Arrays\nA Bloom filter uses $k$ independent hash functions over an $m$-bit array. It answers whether an element is *possibly in the set* or *definitely not in the set*.\n\n```python\n# Formula for optimal hash functions: k = (m / n) * ln(2)\n# Probability of false positive: p ≈ (1 - e^(-kn/m))^k\n```\n\n**Use Case:** Eliminates expensive disk and database lookups for non-existent primary keys (e.g., used internally by RocksDB and Cassandra)."),
 
-              # --- ALGORITHMIC PATTERNS (DSA) ---
-              ("dsa", "Sliding Window Maximum using Deque",
-               "### Monotonic Double-Ended Queue Pattern\nFinding the maximum element in sliding windows of size $K$ naively takes $O(N \\times K)$. Using a monotonic decreasing deque achieves linear $O(N)$ runtime.\n\n```python\nfrom collections import deque\nfrom typing import List\n\ndef max_sliding_window(nums: List[int], k: int) -> List[int]:\n    dq = deque() # Stores indices of elements in monotonically decreasing value order\n    result = []\n    \n    for i, n in enumerate(nums):\n        # 1. Pop smaller elements from right\n        while dq and nums[dq[-1]] < n:\n            dq.pop()\n        dq.append(i)\n        \n        # 2. Evict leftmost index if outside window\n        if dq[0] == i - k:\n            dq.popleft()\n            \n        # 3. Append maximum (at index dq[0]) once first window completed\n        if i >= k - 1:\n            result.append(nums[dq[0]])\n            \n    return result\n```\n\n**Complexity:** Time: $O(N)$ amortized. Space: $O(K)$ auxiliary space.")
+              ("dsa", "Trie (Prefix Tree) Implementation for Fast Autocomplete",
+               "### Prefix Tree Structure & Query Invariants\nA Trie stores characters hierarchically to execute prefix searches in $O(L)$ time, where $L$ is word length, independent of dictionary size $N$.\n\n```python\nclass TrieNode:\n    def __init__(self):\n        self.children = {}\n        self.is_end = False\n\nclass Trie:\n    def __init__(self):\n        self.root = TrieNode()\n\n    def insert(self, word: str):\n        curr = self.root\n        for char in word:\n            curr = curr.children.setdefault(char, TrieNode())\n        curr.is_end = True\n```\n\n**Complexity:** Search: $O(L)$, Insertion: $O(L)$, Space: $O(N \\times L \\times \\Sigma)$.")
           ]
 
-          category, title, content = random.choice(topics)
+          # Setup Git config for Abdullah Ahmed
+          actor_id = os.environ.get("GITHUB_ACTOR_ID", "1234567")
+          actor = os.environ.get("GITHUB_ACTOR", "AbdullahAhmed2006")
+          user_email = f"{actor_id}+{actor}@users.noreply.github.com"
+
+          subprocess.run(["git", "config", "--global", "user.name", "Abdullah Ahmed"], check=True)
+          subprocess.run(["git", "config", "--global", "user.email", user_email], check=True)
+
+          # Har run par 2 se 4 alag alag topics pick karega
+          num_commits = random.randint(2, 4)
+          selected_topics = random.sample(topics, num_commits)
           date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-          slug = title.lower().replace(" ", "-").replace("/", "-").replace("+", "p")
 
-          target_dir = f"vault/{category}"
-          os.makedirs(target_dir, exist_ok=True)
-          file_path = f"{target_dir}/{date_str}-{slug}.md"
+          for idx, (category, title, content) in enumerate(selected_topics):
+              target_dir = f"vault/{category}"
+              os.makedirs(target_dir, exist_ok=True)
+              slug = title.lower().replace(" ", "-").replace("/", "-").replace("+", "p")
+              file_path = f"{target_dir}/{date_str}-{slug}.md"
 
-          with open(file_path, "w", encoding="utf-8") as f:
-              f.write(f"# {title}\n\n")
-              f.write(f"- **Author:** Abdullah Ahmed (@AbdullahAhmed2006)\n")
-              f.write(f"- **Date Published:** {date_str}\n")
-              f.write(f"- **Category:** `{category}`\n\n---\n\n")
-              f.write(content)
-              f.write("\n\n---\n*Automated Computer Science & Engineering Architecture Vault.*")
+              with open(file_path, "w", encoding="utf-8") as f:
+                  f.write(f"# {title}\n\n")
+                  f.write(f"- **Author:** Abdullah Ahmed (@AbdullahAhmed2006)\n")
+                  f.write(f"- **Entry:** #{idx+1} for {date_str}\n")
+                  f.write(f"- **Category:** `{category}`\n\n---\n\n")
+                  f.write(content)
+                  f.write("\n\n---\n*Automated Computer Science & Engineering Architecture Vault.*")
+
+              # Individual commit per topic taake separate commits register hon
+              subprocess.run(["git", "add", file_path], check=True)
+              commit_msg = f"docs({category}): add technical study on {title} [batch-{idx+1}]"
+              subprocess.run(["git", "commit", "-m", commit_msg], check=True)
+              time.sleep(1) # Chota pause taake timestamp order clear rahe
+
+          # Final Push
+          subprocess.run(["git", "push", "origin", "main"], check=True)
           '
-
-      - name: Commit and Push Note as Abdullah Ahmed
-        run: |
-          git config --global user.name "Abdullah Ahmed"
-          git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-          git add vault/
-          git commit -m "docs: publish comprehensive engineering note [streak-sync]" || echo "No changes to commit"
-          git push origin main
+        env:
+          GITHUB_ACTOR_ID: ${{ github.actor_id }}
+          GITHUB_ACTOR: ${{ github.actor }}
