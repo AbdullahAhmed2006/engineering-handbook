@@ -2,12 +2,11 @@ name: Daily CS Knowledge Sync
 
 on:
   schedule:
-    # Din mein 3 alag alag dafa chalega (PKT Times):
     # 1) Subah 11:30 AM PKT (6:30 AM UTC)
     # 2) Shaam 5:30 PM PKT (12:30 PM UTC)
     # 3) Raat 11:30 PM PKT (6:30 PM UTC)
     - cron: '30 6,12,18 * * *'
-  workflow_dispatch: # Manual button to trigger multi-commits on demand
+  workflow_dispatch: # Manual run button
 
 permissions:
   contents: write
@@ -18,6 +17,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,28 +32,27 @@ jobs:
 
           topics = [
               ("cpp-systems", "RAII Idiom and Zero-Cost Abstractions in Modern C++",
-               "### Resource Acquisition Is Initialization (RAII)\nRAII ties the lifecycle of OS resources (file handles, sockets, mutexes) to object lifetime on the stack.\n\n```cpp\n#include <fstream>\n#include <mutex>\n\nvoid safe_write(const std::string& data) {\n    static std::mutex mtx;\n    std::lock_guard<std::mutex> lock(mtx); // Mutex acquired\n    std::ofstream file(\"audit.log\", std::ios::app);\n    file << data << \"\\n\";\n} // File closed and mutex automatically unlocked here\n```\n\n**Benefit:** Guaranteed exception safety and zero manual deallocation."),
+               "### Resource Acquisition Is Initialization (RAII)\nRAII ties the lifecycle of OS resources to object lifetime on the stack.\n\n```cpp\n#include <fstream>\n#include <mutex>\n\nvoid safe_write(const std::string& data) {\n    static std::mutex mtx;\n    std::lock_guard<std::mutex> lock(mtx);\n    std::ofstream file(\"audit.log\", std::ios::app);\n    file << data << \"\\n\";\n}\n```"),
 
               ("python-backend", "Generators and Memory-Efficient Streaming in Python",
-               "### Evaluating Infinite Sequences with Yield\nStandard list comprehensions allocate entire collections in memory. Generators provide lazy evaluation using state suspension.\n\n```python\ndef stream_heavy_dataset(chunk_size=1024):\n    with open(\"server_logs.txt\", \"r\") as f:\n        while chunk := f.read(chunk_size):\n            yield chunk\n\nfor chunk in stream_heavy_dataset():\n    # Processes data stream with O(1) memory footprint\n    pass\n```\n\n**Complexity:** Time: $O(N)$, Space: $O(1)$ memory usage."),
+               "### Evaluating Infinite Sequences with Yield\nStandard list comprehensions allocate entire collections in memory. Generators provide lazy evaluation using state suspension.\n\n```python\ndef stream_heavy_dataset(chunk_size=1024):\n    with open(\"server_logs.txt\", \"r\") as f:\n        while chunk := f.read(chunk_size):\n            yield chunk\n```"),
 
               ("react-frontend", "React Server Components vs Client Island Hydration",
-               "### Architecture of Zero-Bundle-Size Server Components\nServer Components execute strictly on Node/Edge runtime, streaming serialized JSON-like virtual trees to the browser without shipping runtime JavaScript dependencies.\n\n```tsx\n// Server Component: direct DB access, 0kb client bundle\nimport db from \"@/lib/db\";\n\nexport default async function UserProfile({ id }: { id: string }) {\n  const user = await db.user.findUnique({ where: { id } });\n  return <section className=\"p-6 font-sans\">{user.name}</section>;\n}\n```\n\n**Key Metric:** Lowers First Contentful Paint (FCP) and reduces initial bundle overhead by up to 60%."),
+               "### Architecture of Zero-Bundle-Size Server Components\nServer Components execute strictly on Node/Edge runtime, streaming serialized JSON-like virtual trees to the browser without shipping runtime JavaScript dependencies."),
 
               ("java-backend", "Java Virtual Threads (Project Loom) Execution",
-               "### Lightweight User-Mode Threads in JDK 21+\nTraditional Java threads map 1:1 to OS kernel threads, bounded by OS memory stack allocation. Virtual threads decouple execution using carrier thread pooling.\n\n```java\ntry (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {\n    for (int i = 0; i < 10000; i++) {\n        executor.submit(() -> {\n            Thread.sleep(100); // Parks virtual thread without blocking OS kernel thread\n            return \"Complete\";\n        });\n    }\n}\n```\n\n**Scale:** Capable of running millions of concurrent threads with minimal footprint."),
+               "### Lightweight User-Mode Threads in JDK 21+\nVirtual threads decouple execution using carrier thread pooling, allowing millions of concurrent tasks with minimal memory footprint."),
 
               ("databases", "B-Tree Splitting and Write Amplification in Storage Engines",
-               "### B+ Tree Node Splitting\nWhen an index leaf page exceeds the maximum block size (typically 8KB), an interior node split occurs. While lookups remain optimal at $O(\log N)$, random insertions cause page fragmentation and write amplification.\n\n```sql\n-- Create partitioned index to prevent page hot-spots\nCREATE TABLE sensor_readings (\n    recorded_at TIMESTAMPTZ NOT NULL,\n    reading_val DOUBLE PRECISION\n) PARTITION BY RANGE (recorded_at);\n```\n\n**Remediation:** Bulk loading and sequential monotonically increasing keys minimize page split overhead."),
+               "### B+ Tree Node Splitting\nWhen an index leaf page exceeds the maximum block size, an interior node split occurs. Sequential monotonically increasing keys minimize page split overhead."),
 
               ("system-design", "Bloom Filter Internals and False Positive Reduction",
-               "### Probabilistic Set Membership via Bit Arrays\nA Bloom filter uses $k$ independent hash functions over an $m$-bit array. It answers whether an element is *possibly in the set* or *definitely not in the set*.\n\n```python\n# Formula for optimal hash functions: k = (m / n) * ln(2)\n# Probability of false positive: p ≈ (1 - e^(-kn/m))^k\n```\n\n**Use Case:** Eliminates expensive disk and database lookups for non-existent primary keys (e.g., used internally by RocksDB and Cassandra)."),
+               "### Probabilistic Set Membership via Bit Arrays\nA Bloom filter uses $k$ independent hash functions over an $m$-bit array to eliminate expensive disk lookups for non-existent primary keys."),
 
-              ("dsa", "Trie (Prefix Tree) Implementation for Fast Autocomplete",
-               "### Prefix Tree Structure & Query Invariants\nA Trie stores characters hierarchically to execute prefix searches in $O(L)$ time, where $L$ is word length, independent of dictionary size $N$.\n\n```python\nclass TrieNode:\n    def __init__(self):\n        self.children = {}\n        self.is_end = False\n\nclass Trie:\n    def __init__(self):\n        self.root = TrieNode()\n\n    def insert(self, word: str):\n        curr = self.root\n        for char in word:\n            curr = curr.children.setdefault(char, TrieNode())\n        curr.is_end = True\n```\n\n**Complexity:** Search: $O(L)$, Insertion: $O(L)$, Space: $O(N \\times L \\times \\Sigma)$.")
+              ("dsa", "Trie Prefix Tree Implementation for Autocomplete",
+               "### Prefix Tree Structure & Invariants\nA Trie stores characters hierarchically to execute prefix searches in $O(L)$ time, where $L$ is word length.")
           ]
 
-          # Setup Git config for Abdullah Ahmed
           actor_id = os.environ.get("GITHUB_ACTOR_ID", "1234567")
           actor = os.environ.get("GITHUB_ACTOR", "AbdullahAhmed2006")
           user_email = f"{actor_id}+{actor}@users.noreply.github.com"
@@ -60,32 +60,36 @@ jobs:
           subprocess.run(["git", "config", "--global", "user.name", "Abdullah Ahmed"], check=True)
           subprocess.run(["git", "config", "--global", "user.email", user_email], check=True)
 
-          # Har run par 2 se 4 alag alag topics pick karega
+          # Pull latest commits to prevent conflict
+          subprocess.run(["git", "pull", "--rebase", "origin", "main"], check=False)
+
           num_commits = random.randint(2, 4)
           selected_topics = random.sample(topics, num_commits)
-          date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+          now = datetime.datetime.utcnow()
+          date_str = now.strftime("%Y-%m-%d")
 
           for idx, (category, title, content) in enumerate(selected_topics):
               target_dir = f"vault/{category}"
               os.makedirs(target_dir, exist_ok=True)
+              time_suffix = int(time.time() * 1000) % 1000000
               slug = title.lower().replace(" ", "-").replace("/", "-").replace("+", "p")
-              file_path = f"{target_dir}/{date_str}-{slug}.md"
+              file_path = f"{target_dir}/{date_str}-{slug}-{time_suffix}.md"
 
               with open(file_path, "w", encoding="utf-8") as f:
                   f.write(f"# {title}\n\n")
                   f.write(f"- **Author:** Abdullah Ahmed (@AbdullahAhmed2006)\n")
-                  f.write(f"- **Entry:** #{idx+1} for {date_str}\n")
+                  f.write(f"- **Timestamp:** {now.isoformat()}Z (Batch #{idx+1})\n")
                   f.write(f"- **Category:** `{category}`\n\n---\n\n")
                   f.write(content)
                   f.write("\n\n---\n*Automated Computer Science & Engineering Architecture Vault.*")
 
-              # Individual commit per topic taake separate commits register hon
               subprocess.run(["git", "add", file_path], check=True)
               commit_msg = f"docs({category}): add technical study on {title} [batch-{idx+1}]"
-              subprocess.run(["git", "commit", "-m", commit_msg], check=True)
-              time.sleep(1) # Chota pause taake timestamp order clear rahe
+              # Safe commit execution
+              subprocess.run(f"git commit -m \"{commit_msg}\" || true", shell=True, check=True)
+              time.sleep(2)
 
-          # Final Push
+          # Push all generated commits safely
           subprocess.run(["git", "push", "origin", "main"], check=True)
           '
         env:
